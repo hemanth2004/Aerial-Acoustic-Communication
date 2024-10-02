@@ -1,15 +1,15 @@
-import time
-import os
-import pyaudio
-import numpy as np
-import keyboard
+"""
+Handles Real-Time Signal Reception and Demodulation
+"""
 
-# Global variables
+# signal_reception.py
+import time
+import numpy as np
+import pandas as pd
+import pyaudio
+
 p = None
 stream = None
-
-def clear_terminal():
-    os.system('cls' if os.name == 'nt' else 'clear')
 
 def on_awake():
     global p, stream
@@ -23,23 +23,21 @@ def on_awake():
                     rate=44100,
                     input=True,
                     frames_per_buffer=1024)
-
+    
 def update(delta_time):
-    global stream
+    # global stream
 
-    # Read data from the microphone
-    data = stream.read(1024, exception_on_overflow=False)
-    mic_values = np.frombuffer(data, dtype=np.int16)
+    # # Read data from the microphone
+    # data = stream.read(1024, exception_on_overflow=False)
+    # mic_values = np.frombuffer(data, dtype=np.int16)
+    
+    # print(f"Input latency: {stream.get_input_latency()}")
+    # print(f"CPU load: {stream.get_cpu_load()}")
+    # print(f"Mic Values: {pd.Series(mic_values)}") 
 
-    # Update Loop with microphone values
-    clear_terminal()
-    print(f"Input latency: {stream.get_input_latency()}")
-    print(f"CPU load: {stream.get_cpu_load()}")
-    print(f"Mic Values: {mic_values[:10]}")  # Display the first 10 mic values as a sample
-
-    # Calculate FPS
-    fps = 1.0 / delta_time
-    print(f"FPS: {fps:.2f}")
+    # fps = 1.0 / delta_time
+    # print(f"FPS: {fps:.2f}")
+    pass
 
 def on_exit():
     global p, stream
@@ -53,20 +51,11 @@ def on_exit():
 
     print("Exiting program...")
 
-def main():
-    max_delta_time = 0.00001
+def main_loop(callback, max_delta_time=0.1):
     previous_time = time.time()
     running = True
 
     on_awake()
-
-    # Function to exit the loop
-    def exit_program():
-        nonlocal running
-        running = False
-
-    # Register the shortcut (Left Shift + Alt)
-    keyboard.add_hotkey('shift+alt', exit_program)
 
     while running:
         current_time = time.time()
@@ -79,11 +68,9 @@ def main():
         if delta_time == 0:
             delta_time = 1e-6
 
-        update(delta_time)
+        global stream
+        callback(delta_time, stream)
 
         time.sleep(0.000001)
 
     on_exit()
-
-if __name__ == "__main__":
-    main()
