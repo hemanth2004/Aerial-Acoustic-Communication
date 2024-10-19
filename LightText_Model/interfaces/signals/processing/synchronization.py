@@ -61,15 +61,7 @@ class sync_ask:
             if not self.engine_on:
                 return
             
-            t = 0
-            if self.post_preamble and self.window_index > 0 and self.first_edge > 0:
-                rem = self.window_index - self.first_edge
-                max = self.fixed_frame_size
-                rem = max - rem
-                t = abs(rem / self.sampling_rate)
-                print("time left: ", t)
-            else:
-                t = self.bottleneck_deadline * 1.5
+            t = self.bottleneck_deadline * 1.5
             
             timer = threading.Timer(t, self.__turn_off_engine)
             timer.start()
@@ -79,6 +71,7 @@ class sync_ask:
     def append_samples(self, samples):
         if self.engine_on:
             self.sample_deque.extend(samples)
+            print("taking in samples  :", len(samples))
         
         self.ensure_mem()
         if self.ensure_min():
@@ -274,7 +267,7 @@ class sync_ask:
         result = found_valid_sequence and max_continuous_ones >= min_length
         if result:
             # Use `end_of_preamble_block` for window positioning
-            self.window_index = end_of_preamble_block + int((self.symbol_duration * self.sampling_rate / 2.0) * 0.85)
+            self.window_index = end_of_preamble_block + int((self.symbol_duration * self.sampling_rate / 2.0))
             self.first_edge = self.window_index
         return result
 

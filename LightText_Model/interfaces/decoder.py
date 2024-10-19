@@ -13,11 +13,11 @@ from frame_processing import get_frame
 
 # engine on parameters
 power_mean_threshold = 0.001 # for pre preamble phase
-power_max_threshold = 0.013 # for pre and post preamble phase
+power_max_threshold = 0.01 # for pre and post preamble phase
 
 rate = 44100
 symbol_duration = 0.2
-frame_size = 1 + 5 * 5
+frame_size = 1 + 5 * 2
 
 in_frame = False
 
@@ -54,7 +54,7 @@ fft_fig = None
 # ftp = realtime_process(
 #     process=np.fft.fft, 
 #     outlet=ftp_out, 
-#     deadline=4, 
+#     deadline=8, 
 #     sample_rate=44100
 # )
 #endregion
@@ -81,16 +81,14 @@ def dif_out(samples):
 dif = realtime_process(
     process=np.gradient,
     outlet=dif_out, 
-    deadline=4,
+    deadline=8,
     sample_rate=44100
 )
 #endregion
 
 
 #region Synchronization Engine
-
 def frame_outlet(frame):
-
     f = open("__comm.txt", "r")
     orig = f.read()
     orig_bits = np.array([])
@@ -100,14 +98,15 @@ def frame_outlet(frame):
     frame = frame.astype(int)
     orig_bits = orig_bits.astype(int)
     get_frame(frame, orig_bits)
+
 syncing = sync_ask(
     demod=decode_ask_signal,
     sampling_rate=44100,
     symbol_duration=symbol_duration,
     frame_outlet=frame_outlet,
     preamble=np.array([1, 1, 1, 1]),
-    plot=True,
-    bottleneck_deadline=4,
+    plot=False,
+    bottleneck_deadline=8,
     fixed_frame_size=frame_size
 )
 
@@ -191,7 +190,7 @@ def inf3_out(args):
 
     syncing.append_samples(samples)
 
-    if False:
+    if True:
         # Close the previous figure if it exists
         if fft_fig is not None:
             plt.close(fft_fig)
@@ -218,7 +217,7 @@ def inf3_out(args):
 inf3 = realtime_process(
     process=inf3_process,
     outlet=inf3_out,
-    deadline=4,
+    deadline=8,
     sample_rate=44100
 )
 #endregion
@@ -324,7 +323,7 @@ def inf2_out(args):
 inf2 = realtime_process(
     process=inf2_process,
     outlet=inf2_out,
-    deadline=4,
+    deadline=8,
     sample_rate=44100
 )
 #endregion
@@ -427,7 +426,7 @@ def inf_out(args):
 inf = realtime_process(
     process=inf_process,
     outlet=inf_out,
-    deadline=4,
+    deadline=8,
     sample_rate=44100
 )
 #endregion
@@ -435,7 +434,7 @@ inf = realtime_process(
 #region Comparator1 realtime process
 
 def cmp1_process(samples):
-    threshold = np.mean(samples) * 1
+    threshold = np.mean(samples) * 0.9
     # Compare when sample value > threshold
     return (samples > threshold).astype(int), samples
 
@@ -443,37 +442,37 @@ def cmp1_out(params):
     samples, original = params
     global hbe_engine_decision
 
-    # Count the variance in block sizes to know whether its bits or random signals
-    def count_contiguous_blocks(signal):
-        counts_0 = []
-        counts_1 = []
-        current_count = 1
-        for i in range(1, len(signal)):
-            if signal[i] == signal[i - 1]:
-                current_count += 1  # Increment count if the same as previous
-            else:
-                # Append the count to the respective list
-                if signal[i - 1] == 0:
-                    counts_0.append(current_count)
-                else:
-                    counts_1.append(current_count)
-                current_count = 1  # Reset count for the new value
+    # # Count the variance in block sizes to know whether its bits or random signals
+    # def count_contiguous_blocks(signal):
+    #     counts_0 = []
+    #     counts_1 = []
+    #     current_count = 1
+    #     for i in range(1, len(signal)):
+    #         if signal[i] == signal[i - 1]:
+    #             current_count += 1  # Increment count if the same as previous
+    #         else:
+    #             # Append the count to the respective list
+    #             if signal[i - 1] == 0:
+    #                 counts_0.append(current_count)
+    #             else:
+    #                 counts_1.append(current_count)
+    #             current_count = 1  # Reset count for the new value
 
-        # Append the last counted block
-        if signal[-1] == 0:
-            counts_0.append(current_count)
-        else:
-            counts_1.append(current_count)
+    #     # Append the last counted block
+    #     if signal[-1] == 0:
+    #         counts_0.append(current_count)
+    #     else:
+    #         counts_1.append(current_count)
 
-        return np.array(counts_0), np.array(counts_1)
-    count0s, count1s = count_contiguous_blocks(samples)
-    total = np.concatenate((count0s, count1s))
-    variance = np.var(total)
-    def format_indian_number(n):
-        return f"{n:,.0f}".replace(',', 'X').replace('.', ',').replace('X', '.')
+    #     return np.array(counts_0), np.array(counts_1)
+    # count0s, count1s = count_contiguous_blocks(samples)
+    # total = np.concatenate((count0s, count1s))
+    # variance = np.var(total)
+    # def format_indian_number(n):
+    #     return f"{n:,.0f}".replace(',', 'X').replace('.', ',').replace('X', '.')
 
-    # print("Variance: ", format_indian_number(variance), "\nhilbert decision: ", hbe_engine_decision)
-    # print()
+    # # print("Variance: ", format_indian_number(variance), "\nhilbert decision: ", hbe_engine_decision)
+    # # print()
 
     syncing.set_engine_status(hbe_engine_decision)
     inf.update(samples)
@@ -505,7 +504,7 @@ def cmp1_out(params):
 cmp1 = realtime_process(
     process=cmp1_process,
     outlet=cmp1_out,
-    deadline=4,
+    deadline=8,
     sample_rate=44100
 )
 #endregion
@@ -514,24 +513,23 @@ cmp1 = realtime_process(
 def hbe_process(samples):
     analytical_signal = hilbert(samples)
     envelope = np.abs(analytical_signal)
-    envelope = moving_average(envelope, window_size=600)
+    envelope = moving_average(envelope, window_size=1000)
     return envelope, samples
 def hbe_out(args):
     envelope, original_samples = args
     global hbe_engine_decision
 
-    mean = np.mean(envelope)
-    max = np.max(envelope)
-    # print("-------\nMean = ", mean, "\nMax = ", max)
-    if syncing.post_preamble:
-        hbe_engine_decision = max > power_max_threshold
-    else:
-        hbe_engine_decision = max > power_max_threshold and mean > power_mean_threshold
-
-    # hbe_engine_decision = True
+    signal_mean = np.mean(envelope)
+    signal_max = np.max(envelope)
+    print("-------\nMean = ", signal_mean, "\nMax = ", signal_max)
+    # if syncing.post_preamble:
+    #     hbe_engine_decision = signal_max > power_max_threshold
+    # else:
+    #     hbe_engine_decision = signal_max > power_max_threshold #and signal_mean > power_mean_threshold
 
     cmp1.update(envelope)
 
+    hbe_engine_decision = signal_max > power_max_threshold
     global fft_fig
     if False:
         if fft_fig is not None:
@@ -555,7 +553,7 @@ def hbe_out(args):
 hbe = realtime_process(
     process=hbe_process,
     outlet=hbe_out,
-    deadline=4,
+    deadline=8,
     sample_rate=44100
 )
 #endregion
@@ -596,7 +594,7 @@ def nbf_outlet(args):
 nbf = realtime_process(
     process=nbf_process,
     outlet=nbf_outlet,
-    deadline=4,
+    deadline=8,
     sample_rate=rate
 )
 #endregion

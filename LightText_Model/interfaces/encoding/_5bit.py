@@ -34,15 +34,15 @@ _5bit_dict = {
     20: 'u',
     21: '[', # 21 in binary is 10101 which helps with sync as a preamble
     22: ']', # 10110
-    23: '<', # another optional preamble
+    23: '<', # 10111another optional preamble
     24: 'y',
     25: 'z',
     26: ' ',
     27: '\\',
     28: 'v',
     29: 'w',
-    30: 'x',
-    31: '>',
+    30: 'x', #11110
+    31: '>', #11111
 }
 
 _5b_rev = {v: k for k, v in _5bit_dict.items()}

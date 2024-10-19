@@ -1,21 +1,21 @@
 import numpy as np
 from signals.util import num2binarr
-
 from encoding._5bit import char_from_bin, bin_from_char, _5b_verify
 from signals.errors.checksum import append_checksum
 
 from signals.sender import send_bits
 from signals.receiver_local import recorded_read
 from signals.modulation.ask import generate_ask_signal, decode_ask_signal
+from signals.modulation.css import generate_css_bok_signal, generate_css_qok_signal
 
 
-message_txt = "there"
+message_txt = "hi"
 
 
 send_encoding = bin_from_char
 receive_encoding = char_from_bin
 
-mod_fn = generate_ask_signal
+mod_fn = generate_css_qok_signal
 demod_fn = decode_ask_signal
 
 mod_order = 2
@@ -25,9 +25,9 @@ verify_fn = _5b_verify
 
 preamble_bits = [1, 1, 1, 1, 0]
 
-preamble_signal = generate_ask_signal(
+preamble_signal = generate_css_qok_signal(
     bit_array=preamble_bits,
-    sample_rate=44100, symbol_duration=0.2)
+    sample_rate=44100, symbol_duration=0.20)
 
 def send_text(txt):
     if not verify_fn(txt):
