@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import wave
 
 sample_rate = 44100  # Sample rate in Hz
-duration = 0.2   # Duration of each symbol in seconds
+duration = 0.075  # Duration of each symbol in seconds
 
 # Save the signal to a WAV file
 def save_to_wav(signal, sample_rate, filename):

@@ -1,64 +1,44 @@
-import matplotlib.pyplot as plt
 import numpy as np
-import tkinter as tk
+import matplotlib.pyplot as plt
+from scipy.signal import hilbert
+from interfaces.signals.modulation.css import generate_css_bok_signal
 
-# Function to create a figure and return the axis
-def create_figure(x, y):
-    fig = plt.figure()
-    ax = fig.add_subplot(111)
-    ax.set_xlim(0, 10)
-    ax.set_ylim(0, 10)
-    line, = ax.plot([], [])  # Create an empty line
-
-    # Position the figure
-    fig.canvas.manager.window.wm_geometry(f"+{x}+{y}")
+def frequency_time_filter(signal, sample_rate):
+    """
+    Converts the given signal into a frequency-time representation.
+    This function calculates the instantaneous frequency using the Hilbert transform.
     
-    return line, ax, fig
+    Parameters:
+    - signal (numpy array): Input chirp signal.
+    - sample_rate (float): The sampling rate of the signal.
+    
+    Returns:
+    - time (numpy array): Time axis.
+    - inst_freq (numpy array): Instantaneous frequency at each time point.
+    """
+    # Compute analytic signal using Hilbert transform
+    analytic_signal = hilbert(signal)
+    
+    # Extract the instantaneous phase
+    inst_phase = np.unwrap(np.angle(analytic_signal))
+    
+    # Compute the instantaneous frequency as the derivative of the phase
+    inst_freq = np.diff(inst_phase) * (sample_rate / (2.0 * np.pi))
+    
+    # Time axis for plotting (excluding the last point since freq has one less element)
+    time = np.arange(len(inst_freq)) / sample_rate
+    
+    return time, inst_freq
 
-# Function to update the plots
-def update_plots(lines, axes, figures):
-    for i, (line, ax) in enumerate(zip(lines, axes)):
-        # Generate new data for the plot (e.g., a simple sine wave)
-        x_data = np.linspace(0, 10, 100)
-        y_data = np.sin(x_data + i)  # Vary phase based on index
-        line.set_data(x_data, y_data)
-        
-        ax.relim()  # Update limits
-        ax.autoscale_view()  # Rescale the view
-        figures[i].canvas.draw()  # Redraw the figure
+time_axis, inst_freq = frequency_time_filter(generate_css_bok_signal([1,0,1,0,1,0], 0.1, 44100), 44100)
 
-    # Schedule the next update
-    root.after(100, update_plots, lines, axes, figures)  # Update every 100 ms
-
-# Create a Tkinter root window
-root = tk.Tk()
-root.withdraw()  # Hide the main window
-
-# Get screen dimensions
-screen_width = root.winfo_screenwidth()
-screen_height = root.winfo_screenheight()
-
-# Define positions for each figure (top-left, top-right, bottom-left, bottom-right)
-positions = [
-    (0, 0),                           # Top-left
-    (screen_width // 2, 0),          # Top-right
-    (0, screen_height // 2),          # Bottom-left
-    (screen_width // 2, screen_height // 2)  # Bottom-right
-]
-
-# Create figures and store lines and axes
-lines = []
-axes = []
-figures = []
-
-for pos in positions:
-    line, ax, fig = create_figure(*pos)
-    lines.append(line)
-    axes.append(ax)
-    figures.append(fig)
-
-# Start the update loop
-update_plots(lines, axes, figures)
-
-# Keep the script running to display figures
-root.mainloop()
+# Plot the result
+plt.figure(figsize=(10, 6))
+plt.plot(time_axis, inst_freq, label="Instantaneous Frequency", color='blue')
+plt.xlabel('Time [s]')
+plt.ylabel('Frequency [Hz]')
+plt.title('Frequency-Time Representation of the Upchirp Signal')
+plt.grid(True)
+plt.legend()
+plt.tight_layout()
+plt.show()

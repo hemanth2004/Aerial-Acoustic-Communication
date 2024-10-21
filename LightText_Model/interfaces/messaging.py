@@ -6,34 +6,34 @@ from signals.errors.checksum import append_checksum
 from signals.sender import send_bits
 from signals.receiver_local import recorded_read
 from signals.modulation.ask import generate_ask_signal, decode_ask_signal
-from signals.modulation.css import generate_css_bok_signal, generate_css_qok_signal
+from signals.modulation.css import generate_css_cts_signal, generate_css_bok_signal, generate_css_qok_signal
 
 
-message_txt = "hi"
+message_txt = "hi>"
 
 
 send_encoding = bin_from_char
 receive_encoding = char_from_bin
 
-mod_fn = generate_css_qok_signal
-demod_fn = decode_ask_signal
-
+mod_fn = generate_css_bok_signal
 mod_order = 2
 
 bit_per_symbol = 5
 verify_fn = _5b_verify
 
-preamble_bits = [1, 1, 1, 1, 0]
+preamble_bits = [] #[1, 1, 1, 1, 0]
 
-preamble_signal = generate_css_qok_signal(
+preamble_signal = generate_css_bok_signal(
     bit_array=preamble_bits,
-    sample_rate=44100, symbol_duration=0.20)
+    sample_rate=44100, symbol_duration=0.075)
 
 def send_text(txt):
     if not verify_fn(txt):
         return
     
     enc_arr = [num2binarr.to(send_encoding(char), bit_per_symbol) for char in txt]
+    # For addding error checking checksum
+    # Replace with error correction method isntead
     # enc_arr = append_checksum(enc_arr, bit_per_symbol)
     enc_arr_np = np.array(enc_arr).flatten()
 
@@ -48,17 +48,6 @@ def send_text(txt):
 
     send_bits(enc_arr_np, mod_fn, plot_wave=False, preamble_signal=preamble_signal)
 
-def receive_text(bits):
-    print(bits)
 
-def decode_recorded():
-
-    bin_arr = recorded_read(demod_fn, "ask_signal")
-    bin_arr = np.array(bin_arr).reshape(-1, bit_per_symbol)
-
-    msg = [receive_encoding(num2binarr.fro(bin)) for bin in bin_arr]
-    msg = ''.join(msg)
-    print(msg)
-    
 if __name__ == "__main__":
     send_text(message_txt)

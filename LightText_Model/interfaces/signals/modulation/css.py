@@ -1,11 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-BOK_RANGE = (4000, 6000)
+BOK_RANGE = (3000, 5000)
 
-QOK_SWEEP1 = (1000, 2000) 
-QOK_SWEEP2 = (2000, 3000) 
+
+QOK_SWEEP1 = (3000, 4000) 
+QOK_SWEEP2 = (4000, 5000) 
+QOK_RANGE = (QOK_SWEEP1[0], QOK_SWEEP2[1])
 QOK_PARTITION = 0.7
+
+CTS_RANGE = (4000, 6000)
 
 def generate_css_bok_signal(bit_array, symbol_duration, sample_rate):
     samp_per_sym = int(symbol_duration * sample_rate)
@@ -25,6 +29,7 @@ def generate_css_bok_signal(bit_array, symbol_duration, sample_rate):
     return signal
 
 def generate_css_qok_signal(bit_array, symbol_duration, sample_rate):
+    
     samp_per_sym = int(symbol_duration * sample_rate)
     t = np.arange(samp_per_sym) / sample_rate
     signal = np.array([])
@@ -52,66 +57,28 @@ def generate_css_qok_signal(bit_array, symbol_duration, sample_rate):
 
     return signal
 
+def generate_css_cts_signal(bit_array, symbol_duration, sample_rate):
+    samp_per_sym = int(symbol_duration * sample_rate)
+    t = np.arange(samp_per_sym) / sample_rate
+    signal = np.array([])
 
-def decode_css_bok_signal(signal, symbol_duration, sampling_rate):
-    # Accept a signal and decode it into a bit array. 
-    # Signal is an array of samples
-    # Number of symbols may vary based on the total signal duration.
-    # Also return a list "borders" which contains all the indices of sample points where 
-    # a symbol might have ended/started
-    # So return both bit array and borders list.
-    """
-    Decode the BOK signal into a bit array and identify the symbol boundaries.
-    
-    Parameters:
-    - signal: The received signal (1D array).
-    - symbol_duration: The duration of each symbol in seconds.
-    - sampling_rate: The sampling frequency of the signal in Hz.
+    mid_range = (CTS_RANGE[1] - CTS_RANGE[0]) / 2 + CTS_RANGE[0]  # Mid-range frequency for CTS
 
-    Returns:
-    - bit_array: Decoded bit array.
-    - borders: List of indices marking the start and end of each symbol.
-    """
+    for bit in bit_array:
+        if bit == 1:  # Upchirp
+            # First half: from mid-range to max (CTS_RANGE[1])
+            freq1 = np.linspace(mid_range, CTS_RANGE[1], samp_per_sym // 2)
+            # Second half: from min (CTS_RANGE[0]) to mid-range
+            freq2 = np.linspace(CTS_RANGE[0], mid_range, samp_per_sym - len(freq1))
+            freq = np.concatenate((freq1, freq2))
+        else:  # Downchirp
+            # First half: from mid-range to min (CTS_RANGE[0])
+            freq1 = np.linspace(mid_range, CTS_RANGE[0], samp_per_sym // 2)
+            # Second half: from max (CTS_RANGE[1]) to mid-range
+            freq2 = np.linspace(CTS_RANGE[1], mid_range, samp_per_sym - len(freq1))
+            freq = np.concatenate((freq1, freq2))
 
-    samp_per_sym = int(symbol_duration * sampling_rate)
-    num_symbols = len(signal) // samp_per_sym  # Number of symbols based on the total signal length
-    bit_array = []
-    borders = []
+        chirp_signal = np.cos(2 * np.pi * freq * t)
+        signal = np.concatenate((signal, chirp_signal))
 
-    # Define frequency thresholds based on BOK range
-    bok_freq_low = BOK_RANGE[0]
-    bok_freq_high = BOK_RANGE[1]
-
-    for i in range(num_symbols):
-        # Extract the segment of the signal corresponding to the current symbol
-        start_index = i * samp_per_sym
-        end_index = start_index + samp_per_sym
-        segment = signal[start_index:end_index]
-
-        # Perform FFT to find the dominant frequency in the segment
-        fft_values = np.fft.fft(segment)
-        freqs = np.fft.fftfreq(len(segment), 1/sampling_rate)
-
-        # Find the peak frequency
-        peak_index = np.argmax(np.abs(fft_values[:len(segment)//2]))  # Only consider positive frequencies
-        peak_freq = freqs[peak_index]
-
-        # Check which bit the frequency corresponds to
-        if bok_freq_low <= peak_freq <= bok_freq_high:
-            bit_array.append(1)
-        elif bok_freq_high < peak_freq <= (bok_freq_low + bok_freq_high) / 2:
-            bit_array.append(0)
-        else:
-            # If the frequency is not in expected range, append a default value (could be an error state)
-            # bit_array.append(-1)  # Indicate an error or unknown
-            bit_array
-
-        # Add to borders list
-        borders.append(start_index)
-
-    # Append the last border for the end of the signal
-    borders.append(len(signal))
-
-    return bit_array, borders
-
-    return 
+    return signal
