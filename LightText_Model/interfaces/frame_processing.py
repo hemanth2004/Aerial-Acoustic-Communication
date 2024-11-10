@@ -11,8 +11,9 @@ def get_frame(received, original):
     print("--------")
     print("Bit Accuracy: ", (acc*100), "%")
 
-    received = received[1:]
-    original = original[1:]
+    # For ASK
+    #received = received[1:]
+    #original = original[1:]
 
     msg = ""
     for i in range(0, len(received), 5):
@@ -29,5 +30,5 @@ def get_frame(received, original):
         orig_msg += char
 
     print("Received Msg: ", msg)
-    # print("Original Msg: ", orig_msg)
+    print("Original Msg: ", orig_msg)
     return msg

@@ -5,12 +5,12 @@ from signals.errors.checksum import append_checksum
 
 from signals.sender import send_bits
 from signals.modulation.ask import generate_ask_signal, decode_ask_signal
-from signals.modulation.css import generate_css_bok_signal_half_range, generate_css_bok_signal, generate_css_qok_signal
+from signals.modulation.css import generate_css_bok_signal_half_range, generate_css_bok_signal, generate_css_cts_signal
 
 
-message_txt = "hi"
-symbol_duration = 0.13
-symbol_gap = 0.03
+message_txt = "doge"
+symbol_duration = 0.18
+symbol_gap = 0.02
 
 
 send_encoding = bin_from_char
@@ -39,18 +39,19 @@ def send_text(txt):
     # enc_arr = append_checksum(enc_arr, bit_per_symbol)
     enc_arr_np = np.array(enc_arr).flatten()
 
-    if mod_fn == generate_css_bok_signal: 
+    # if mod_fn == generate_css_bok_signal: 
         # if using CSS modulation
         # then re transmit last symbol because the last bit never registers 
         # on the receiver's correlator for whatever reason
-        enc_arr_np = np.append(enc_arr_np, [enc_arr_np[-1]]) 
+        # enc_arr_np = np.append(enc_arr_np, [enc_arr_np[-1]]) 
         
 
     print("sent data: ", enc_arr)
     print("bits sent: ", len(enc_arr_np))
 
     f = open("__comm.txt", "w")
-    f.write(str(0))
+    if mod_fn == generate_ask_signal:
+        f.write(str(0))
     for i in enc_arr_np:
         f.write(str(i))
     f.close()

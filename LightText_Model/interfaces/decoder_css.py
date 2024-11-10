@@ -9,58 +9,56 @@ from signals.processing.synchronization_css import sync_css
 from signals.util.rt import realtime_process
 from signals.util.utils import scale_signal
 from signals.processing.filters import moving_average, sos_butter_bandpass_filter, bandpass_filter, correlation_filter, matched_filter
-from signals.modulation.css import generate_css_bok_signal, generate_css_qok_signal, generate_css_bok_signal_half_range
+from signals.modulation.css import generate_css_bok_signal, generate_css_qok_signal, generate_css_bok_signal_half_range, generate_css_cts_signal
 from signals.modulation.css import CTS_RANGE, BOK_RANGE, QOK_RANGE, QOK_SWEEP1
 from frame_processing import get_frame
 
+import psutil
+import time
+import threading
+
+def monitor_system_usage(interval=1.0):
+    """
+    Monitors and prints CPU and memory usage of the current program at regular intervals.
+
+    Parameters:
+    - interval (float): Time in seconds between each usage check.
+    """
+    # Get the current process
+    process = psutil.Process(os.getpid())
+    
+    try:
+        while True:
+            # Get CPU and memory usage
+            cpu_usage = process.cpu_percent(interval=interval)
+            memory_info = process.memory_info()
+            memory_usage = memory_info.rss / (1024 ** 2)  # Convert bytes to MB
+
+            # Display the CPU and memory usage
+            print(f"CPU Usage: {cpu_usage}%")
+            print(f"Memory Usage: {memory_usage:.2f} MB")
+
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        print("Monitoring stopped.")
+
+# Start the monitor function in a new thread
+monitor_thread = threading.Thread(target=monitor_system_usage, args=(1.0,), daemon=True)
+monitor_thread.start()
+
+
+
+
 # engine on parameters
-power_mean_threshold = 0.001 # for pre preamble phase
-power_max_threshold = 0.01 # for pre and post preamble phase
+power_mean_threshold = 0.3
+power_max_threshold = 1 # for pre and post preamble phase
 
 rate = 44100
-symbol_duration = 0.13
-symbol_gap = 0.03
-frame_size = 1 + 5 * 2
+symbol_duration = 0.18
+symbol_gap = 0.02
+frame_size = 5*1
 
-in_frame = False
-
-fft_fig = None
-
-#region FFT realtime process
-def ftp_out(output):
-    global fft_fig
-    plt.close(fft_fig)
-
-    # Calculate magnitude of the FFT output
-    magnitude = np.abs(output)
-    
-    # Compute the frequency bins for the FFT output
-    freq = np.fft.fftfreq(len(magnitude), d=1/ftp.sample_rate)
-
-    # Only take the positive frequencies
-    positive_freq_idx = np.where(freq >= 2)
-    freq = freq[positive_freq_idx]
-    magnitude = magnitude[positive_freq_idx]
-
-    # Now filter out frequencies above 50 Hz
-    valid_idx = np.where(freq <= 6000)  # Get indices where frequency <= 20 Hz
-    filtered_freq = freq[valid_idx]
-    filtered_magnitude = magnitude[valid_idx]
-
-    fft_fig = plt.figure()
-    plt.plot(filtered_freq, filtered_magnitude)
-    plt.title('FFT Output (<= 20 Hz)')
-    plt.xlabel('Frequency (Hz)')
-    plt.ylabel('Magnitude')
-    plt.grid(True)
-    plt.show()
-ftp = realtime_process(
-    process=np.fft.fft, 
-    outlet=ftp_out, 
-    deadline=8, 
-    sample_rate=44100
-)
-#endregion
+main_fig = None
 
 #region Utils
 def preprocess_signal(signal):
@@ -108,12 +106,25 @@ def combine_signals(signal1, signal2):
 #endregion
 
 #region Synchronization Engine
-def bit_outlet(frame):
+def frame_outlet(frame):
+    f = open("__comm.txt", "r")
+    orig = f.read()
+    orig_bits = np.array([])
+    for i in orig:
+        orig_bits = np.append(orig_bits, [int(i)])
+
+    frame = frame.astype(int)
+    orig_bits = orig_bits.astype(int)
+    get_frame(frame, orig_bits)
+
+def bit_outlet(bit):
+    # print("bit detected ", bit)
     pass
 syncing = sync_css(
-    sampling_rate=44100,
+    sampling_rate=rate,
     symbol_duration=symbol_duration + symbol_gap,
-    bit_outlet=bit_outlet,
+    bit_outlet=None,
+    frame_outlet=frame_outlet,
     preamble=[1, 1, 0, 1],
     plot=True,
     bottleneck_deadline=8,
@@ -127,16 +138,16 @@ def scm_process(samples):
     return combine_signals(uc_samples, dc_samples)
 
 def scm_out(samples):
-    global fft_fig
+    global main_fig
 
     syncing.append_samples(samples)
     # Plotting logic based on the `plot_nbf` flag
     if False:
-        if fft_fig is not None:
-            plt.close(fft_fig)  # Close the previous figure if it exists
+        if main_fig is not None:
+            plt.close(main_fig)  # Close the previous figure if it exists
 
         # Create a new figure for plotting
-        fft_fig = plt.figure()
+        main_fig = plt.figure()
 
         # Create time axis for plotting
         time_axis = np.arange(len(samples)) / rate
@@ -154,7 +165,7 @@ scm = realtime_process(
     process=scm_process,
     outlet=scm_out,
     deadline=8,
-    sample_rate=44100,
+    sample_rate=rate,
     signals=2
 )
 #endregion
@@ -173,14 +184,14 @@ def dif_out(samples):
     #print("downchirp lines:\n", "even" if len(dc_samples[dc_samples > 0])%2==0 else "odd")
     scm.update(samples)
 
-    global fft_fig
+    global main_fig
     if False:
         
         
-        if fft_fig is not None:
-            plt.close(fft_fig)  # Close the previous figure if it exists
+        if main_fig is not None:
+            plt.close(main_fig)  # Close the previous figure if it exists
 
-        fft_fig = plt.figure()
+        main_fig = plt.figure()
 
         #Plot the envelope
         time_axis = np.arange(len(uc_samples))  # Create a time axis for plotting
@@ -197,7 +208,7 @@ dif = realtime_process(
     process=dif_process,
     outlet=dif_out, 
     deadline=8,
-    sample_rate=44100,
+    sample_rate=rate,
     signals=2
 )
 #endregion
@@ -213,14 +224,14 @@ def cmp_process(samples):
 def cmp_out(samples):
     
     dif.update(samples)
-    global fft_fig
+    global main_fig
     if False:
         uc_samples, dc_samples = samples
-        if fft_fig is not None:
-            plt.close(fft_fig)  # Close the previous figure if it exists
+        if main_fig is not None:
+            plt.close(main_fig)  # Close the previous figure if it exists
 
-        fft_fig = plt.figure()
-        time_axis = np.arange(len(uc_samples)) / 44100  # Create a time axis for plotting
+        main_fig = plt.figure()
+        time_axis = np.arange(len(uc_samples)) / rate  # Create a time axis for plotting
         plt.plot(time_axis, uc_samples, label='upchirp', color='blue')
         plt.plot(time_axis, dc_samples, label='downchirps', color='red')
         plt.title('Comparator Output')
@@ -229,13 +240,13 @@ def cmp_out(samples):
         plt.grid(True)
         plt.legend()
         plt.show(block=False)  # Non-blocking show to allow for real-time updates
-        fft_fig.canvas.manager.window.wm_geometry("+1100+200")
+        main_fig.canvas.manager.window.wm_geometry("+1100+200")
 
 cmp = realtime_process(
     process=cmp_process,
     outlet=cmp_out,
     deadline=8,
-    sample_rate=44100,
+    sample_rate=rate,
     signals=2
 )
 #endregion
@@ -260,13 +271,21 @@ def hbe_out(samples):
     uc_threshold_mid = (np.max(uc_samples) - np.mean(uc_samples)) * 0.6
     dc_threshold_mid = (np.max(dc_samples) - np.mean(dc_samples)) * 0.6
 
-    global fft_fig
-    if False:
-        if fft_fig is not None:
-            plt.close(fft_fig)  # Close the previous figure if it exists
+    # mean_filtered = np.mean(uc_samples + dc_samples)
+    # max_filtered = np.max(uc_samples + dc_samples)
+    # print("max ", max_filtered)
+    # print("mean ", mean_filtered)
+    # print("engine status: ", syncing.engine_on)
+    # status = max_filtered > power_max_threshold and mean_filtered > power_mean_threshold
+    # syncing.set_engine_status(status)
 
-        time_axis = np.arange(len(uc_samples)) / 44100  # Create a time axis for plotting
-        fft_fig = plt.figure()
+    global main_fig
+    if False:
+        if main_fig is not None:
+            plt.close(main_fig)  # Close the previous figure if it exists
+
+        time_axis = np.arange(len(uc_samples)) / rate  # Create a time axis for plotting
+        main_fig = plt.figure()
                 
         plt.axhline(y=uc_threshold_mid, color='blue', linestyle='--', label='Upchirp Threshold')
         plt.axhline(y=dc_threshold_mid, color='red', linestyle='--', label='Downchirp Threshold')
@@ -279,43 +298,43 @@ def hbe_out(samples):
         plt.grid(True)
         plt.legend()
         plt.show(block=False)  # Non-blocking show to allow for real-time updates
-        fft_fig.canvas.manager.window.wm_geometry("+1100+200")
+        main_fig.canvas.manager.window.wm_geometry("+1100+200")
 
 hbe = realtime_process(
     process=hbe_process,
     outlet=hbe_out,
     deadline=8,
-    sample_rate=44100,
+    sample_rate=rate,
     signals=2
 )
 #endregion
 
+#region reference signals
+upchirp = generate_css_bok_signal_half_range([1], symbol_duration, rate)
+downchirp = generate_css_bok_signal_half_range([0], symbol_duration, rate)
 
-#reference signals
-upchirp = generate_css_bok_signal_half_range([1], symbol_duration, 44100)
-downchirp = generate_css_bok_signal_half_range([0], symbol_duration, 44100)
-
-_00_qok = generate_css_qok_signal([0,0],  symbol_duration, 44100)
-_01_qok = generate_css_qok_signal([0,1],  symbol_duration, 44100)
-_10_qok = generate_css_qok_signal([1,0],  symbol_duration, 44100)
-_11_qok = generate_css_qok_signal([1,1],  symbol_duration, 44100)
+_00_qok = generate_css_qok_signal([0,0],  symbol_duration, rate)
+_01_qok = generate_css_qok_signal([0,1],  symbol_duration, rate)
+_10_qok = generate_css_qok_signal([1,0],  symbol_duration, rate)
+_11_qok = generate_css_qok_signal([1,1],  symbol_duration, rate)
+#endregion
 
 #region Correl filter realtime process
 def crl_process(samples):
     # For qok
-    # _00_correls = correlation_filter(samples, 44100, _00_qok)[1]
-    # _01_correls = correlation_filter(samples, 44100, _01_qok)[1]
-    # _10_correls = correlation_filter(samples, 44100, _10_qok)[1]
-    # _11_correls = correlation_filter(samples, 44100, _11_qok)[1]
+    # _00_correls = correlation_filter(samples, rate, _00_qok)[1]
+    # _01_correls = correlation_filter(samples, rate, _01_qok)[1]
+    # _10_correls = correlation_filter(samples, rate, _10_qok)[1]
+    # _11_correls = correlation_filter(samples, rate, _11_qok)[1]
     # return _00_correls, _01_correls, _10_correls, _11_correls
 
     # For cts
-    upchirp_correl = matched_filter(samples,  44100, upchirp)[1]
-    downchirp_correl = matched_filter(samples,  44100, downchirp)[1]
+    upchirp_correl = matched_filter(samples,  rate, upchirp)[1]
+    downchirp_correl = matched_filter(samples,  rate, downchirp)[1]
     return upchirp_correl, downchirp_correl
 
 def crl_output(samples):
-    global fft_fig
+    global main_fig
 
     # For Qok
     # _00_correls, _01_correls, _10_correls, _11_correls = samples
@@ -325,10 +344,10 @@ def crl_output(samples):
     hbe.update(samples)
 
     if False:
-        if fft_fig is not None:
-            plt.close(fft_fig)  
-        fft_fig = plt.figure()
-        time_axis = np.arange(len(upchirp_correl)) / 44100
+        if main_fig is not None:
+            plt.close(main_fig)  
+        main_fig = plt.figure()
+        time_axis = np.arange(len(upchirp_correl)) / rate
 
         plt.plot(time_axis, upchirp_correl, label='Upchirp Correl', color='blue')
         plt.plot(time_axis, downchirp_correl, label='Downchirp Correl', color='red', alpha=0.8)
@@ -342,7 +361,7 @@ crl = realtime_process(
     process=crl_process,
     outlet=crl_output,
     deadline=8,
-    sample_rate=44100
+    sample_rate=rate
 )
 #endregion
 
@@ -352,19 +371,17 @@ def nbf_process(samples):
     result = sos_butter_bandpass_filter(samples, BOK_RANGE[0]-extraband, BOK_RANGE[1]+extraband, rate, 5)
     return result, samples
 def nbf_outlet(args):
-    global fft_fig
+    global main_fig
     filtered_samples, original_samples = args
-
-    # Send the filtered signal to the next process
     crl.update(filtered_samples)
 
     # Plotting logic based on the `plot_nbf` flag
     if False:
-        if fft_fig is not None:
-            plt.close(fft_fig)  # Close the previous figure if it exists
+        if main_fig is not None:
+            plt.close(main_fig)  # Close the previous figure if it exists
 
         # Create a new figure for plotting
-        fft_fig = plt.figure()
+        main_fig = plt.figure()
 
         # Create time axis for plotting
         time_axis = np.arange(len(original_samples)) / rate
@@ -392,7 +409,5 @@ def update_callback(data):
     data = np.reshape(data,  (-1,))
     nbf.update(data)
 
-
 listener.decoder_callbacks.append(update_callback)
 listener.start_listening()
-    

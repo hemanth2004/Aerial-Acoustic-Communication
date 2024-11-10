@@ -23,7 +23,7 @@ def generate_css_bok_signal(bit_array, symbol_duration, sample_rate, gap=0):
     for bit in bit_array:
         if bit == 1:
             # Generate an upchirp
-            chirp_signal = chirp(t, f0=BOK_RANGE[0], f1=BOK_RANGE[1], t1=symbol_duration, method='logarithmic')
+            chirp_signal = chirp(t, f0=BOK_RANGE[0], f1=BOK_RANGE[1], t1=symbol_duration, method='linear')
         else:
             # Generate a downchirp
             chirp_signal = chirp(t, f0=BOK_RANGE[1], f1=BOK_RANGE[0], t1=symbol_duration, method='logarithmic')

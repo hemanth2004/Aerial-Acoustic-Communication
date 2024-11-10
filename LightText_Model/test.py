@@ -1,84 +1,60 @@
-"""
-A homogeneous fixed-size queue.
-"""
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-from array import array
+def plot_stats():
+    # Data for the plot
+    stats = {
+        "CPU (%)": [17.1, 38.4],
+        "Memory (MB)": [376.60, 345.45],
+        "BER (%) - ASK": [4, 24],
+        "Data Rate (bps)": [5, 8.33]
+    }
+    
+    labels = ["ASK", "CSS"]
 
-class FixedsizeQueue(object):
-"""
-A fixed size queue is a homogeneous FIFO queue that can't grow.
-"""
-def __init__(self, max_size, typecode='i'):
-self.size = 0
-self.head = 0
-self.tail = 0
-self.typecode = typecode
-self.max = max_size
-self._data = None
-return
+    # Set Seaborn style for a modern, minimalist look
+    sns.set_theme(style="whitegrid", palette="muted")
+    
+    # Create subplots
+    fig, axes = plt.subplots(2, 2, figsize=(4, 4))
+    axes = axes.flatten()
 
-@property
-def data(self):
-"""
-        :return: an array of size self.max, type self.typecode
-        """
-if self._data is None:
-self._data = array(self.typecode, [0 for i in range(self.max)])
-return self._data
+    # Plot CPU usage with minimalist design
+    axes[0].bar(labels, stats["CPU (%)"], color='steelblue', width=0.4)
+    axes[0].set_title("CPU Usage (%)", fontsize=14, weight='bold')
+    axes[0].set_ylabel("CPU Usage (%)", fontsize=12)
+    axes[0].tick_params(axis='both', which='major', labelsize=11)
+    
+    # Plot Memory usage with minimalist design
+    axes[1].bar(labels, stats["Memory (MB)"], color='seagreen', width=0.4)
+    axes[1].set_title("Memory Usage (MB)", fontsize=14, weight='bold')
+    axes[1].set_ylabel("Memory (MB)", fontsize=12)
+    axes[1].tick_params(axis='both', which='major', labelsize=11)
 
-def enqueue(self, item):
-"""
-        :param:
+    # Plot BER for ASK and CSS with minimalist design
+    axes[2].bar(labels, stats["BER (%) - ASK"], color='salmon', width=0.4)
+    axes[2].set_title("Bit Error Rate (BER) (%)", fontsize=14, weight='bold')
+    axes[2].set_ylabel("BER (%)", fontsize=12)
+    axes[2].tick_params(axis='both', which='major', labelsize=11)
 
-         - `item`: the item to add to the queue
+    # Plot Data Rate for ASK and CSS with minimalist design
+    axes[3].bar(labels, stats["Data Rate (bps)"], color='dodgerblue', width=0.4)
+    axes[3].set_title("Data Rate (bps)", fontsize=14, weight='bold')
+    axes[3].set_ylabel("Data Rate (bps)", fontsize=12)
+    axes[3].tick_params(axis='both', which='major', labelsize=11)
 
-        :return: True if added, False if full
-        """
-if self.size == self.max:
-return False
+    # Adjust layout and remove unnecessary spines
+    for ax in axes:
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_linewidth(0.8)
+        ax.spines['bottom'].set_linewidth(0.8)
+        ax.yaxis.set_tick_params(width=0.8)
+        ax.xaxis.set_tick_params(width=0.8)
 
-self.data[self.tail] = item
+    # Adjust layout for better spacing
+    plt.tight_layout()
+    plt.show()
 
-self.size += 1
-self.tail += 1
-
-if self.tail == self.max:
-self.tail = 0
-return True
-
-def dequeue(self):
-"""
-        :return: oldest item or None
-        """
-if self.size == 0:
-return
-item = self.data[self.head]
-
-self.size -= 1
-self.head += 1
-
-if self.head == self.max:
-self.head = 0
-return item
-
-def reset(self):
-"""
-        :postcondition: head, tail and size reset to 0
-        """
-self.size = 0
-self.tail = 0
-self.head = 0
-return
-
-def empty(self):
-"""
-        :return: True if the queue is empty.
-        """
-return self.size == 0
-
-def full(self):
-"""
-        :return: True if the queue is full.
-        """
-return self.size == self.max
-# end class FixedsizeQueue
+# Call the function to generate the plots
+plot_stats()

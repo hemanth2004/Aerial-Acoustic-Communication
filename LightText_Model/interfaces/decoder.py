@@ -1,4 +1,4 @@
-import interfaces.listener as listener
+import listener as listener
 import numpy as np
 import os
 import matplotlib.pyplot as plt
@@ -7,9 +7,44 @@ from collections import deque
 
 from signals.util.rt import realtime_process
 from signals.processing.filters import moving_average, narrowband_filter, bandpass_filter
-from interfaces.signals.processing.synchronization_ask import sync_ask
+from signals.processing.synchronization_ask import sync_ask
 from signals.modulation.ask import decode_ask_signal, generate_ask_signal 
 from frame_processing import get_frame
+
+import psutil
+import time
+import threading
+
+def monitor_system_usage(interval=1.0):
+    """
+    Monitors and prints CPU and memory usage of the current program at regular intervals.
+
+    Parameters:
+    - interval (float): Time in seconds between each usage check.
+    """
+    # Get the current process
+    process = psutil.Process(os.getpid())
+    
+    try:
+        while True:
+            # Get CPU and memory usage
+            cpu_usage = process.cpu_percent(interval=interval)
+            memory_info = process.memory_info()
+            memory_usage = memory_info.rss / (1024 ** 2)  # Convert bytes to MB
+
+            # Display the CPU and memory usage
+            print(f"CPU Usage: {cpu_usage}%")
+            print(f"Memory Usage: {memory_usage:.2f} MB")
+
+            time.sleep(interval)
+    except KeyboardInterrupt:
+        print("Monitoring stopped.")
+
+# Start the monitor function in a new thread
+monitor_thread = threading.Thread(target=monitor_system_usage, args=(1.0,), daemon=True)
+monitor_thread.start()
+
+
 
 # engine on parameters
 power_mean_threshold = 0.001 # for pre preamble phase
