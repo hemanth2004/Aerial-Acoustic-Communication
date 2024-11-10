@@ -1,6 +1,17 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+def scale_signal(signal):
+    min_val = np.min(signal)
+    max_val = np.max(signal)
+    
+    # Avoid division by zero if the signal has no variation
+    if max_val - min_val == 0:
+        return np.zeros_like(signal)
+    
+    scaled_signal = (signal - min_val) / (max_val - min_val)
+    return scaled_signal
+
 def plot_frequency_spectrum(signal, fs):
     """
     Plots the frequency spectrum of the given signal.

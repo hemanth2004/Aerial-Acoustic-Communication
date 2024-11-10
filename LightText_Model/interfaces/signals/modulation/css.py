@@ -1,7 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.signal import chirp
 
-BOK_RANGE = (3000, 5000)
+BOK_RANGE = (2000, 8000)
 
 
 QOK_SWEEP1 = (3000, 4000) 
@@ -9,22 +10,51 @@ QOK_SWEEP2 = (4000, 5000)
 QOK_RANGE = (QOK_SWEEP1[0], QOK_SWEEP2[1])
 QOK_PARTITION = 0.7
 
-CTS_RANGE = (4000, 6000)
+CTS_RANGE = (2000, 5000)
 
-def generate_css_bok_signal(bit_array, symbol_duration, sample_rate):
+
+def generate_css_bok_signal(bit_array, symbol_duration, sample_rate, gap=0):
     samp_per_sym = int(symbol_duration * sample_rate)
-    t = np.arange(samp_per_sym) / sample_rate
+    samp_per_gap = int(gap * sample_rate)  # Number of samples for the gap duration
+    t = np.linspace(0, symbol_duration, samp_per_sym)  # Time array for one symbol
+    gap_signal = np.zeros(samp_per_gap)  # Signal for the gap
     signal = np.array([])
 
     for bit in bit_array:
         if bit == 1:
-            freq = np.linspace(BOK_RANGE[0], BOK_RANGE[1], samp_per_sym)
+            # Generate an upchirp
+            chirp_signal = chirp(t, f0=BOK_RANGE[0], f1=BOK_RANGE[1], t1=symbol_duration, method='logarithmic')
         else:
-            freq = np.linspace(BOK_RANGE[1], BOK_RANGE[0], samp_per_sym)
+            # Generate a downchirp
+            chirp_signal = chirp(t, f0=BOK_RANGE[1], f1=BOK_RANGE[0], t1=symbol_duration, method='logarithmic')
 
-        chirp_signal = np.cos(2 * np.pi * freq * t)
+        # Concatenate the chirp signal and gap signal
+        signal = np.concatenate((signal, chirp_signal, gap_signal))
+
+    return signal
+
+def generate_css_bok_signal_half_range(bit_array, symbol_duration, sample_rate, gap=0):
+    samp_per_sym = int(symbol_duration * sample_rate)
+    samp_per_gap = int(gap * sample_rate)  # Number of samples for the gap duration
+    t = np.linspace(0, symbol_duration, samp_per_sym)  # Time array for one symbol
+    signal = np.array([])
+
+    mid_point = (BOK_RANGE[0] + BOK_RANGE[1]) / 2
+
+    for bit in bit_array:
+        if bit == 1:
+            # Generate an upchirp from mid-point to the lower half of BOK_RANGE
+            chirp_signal = chirp(t, f1=mid_point, f0=BOK_RANGE[1], t1=symbol_duration, method='quadratic', vertex_zero=False)
+        else:
+            # Generate a downchirp from mid-point to the upper half of BOK_RANGE
+            chirp_signal = chirp(t, f1=mid_point, f0=BOK_RANGE[0], t1=symbol_duration, method='quadratic', vertex_zero=False)
+
+        # Concatenate the chirp signal and gap signal
         signal = np.concatenate((signal, chirp_signal))
 
+        # Append the gap as zeros, if specified
+        if gap > 0:
+            signal = np.concatenate((signal, np.zeros(samp_per_gap)))
 
     return signal
 
@@ -35,7 +65,7 @@ def generate_css_qok_signal(bit_array, symbol_duration, sample_rate):
     signal = np.array([])
 
     if len(bit_array) % 2 != 0:
-        print("ERROR: bit array not even")
+        print("not even bit array, pad it")
         return signal
     
     for bit1, bit2 in zip(bit_array[0::2], bit_array[1::2]):
@@ -57,9 +87,11 @@ def generate_css_qok_signal(bit_array, symbol_duration, sample_rate):
 
     return signal
 
-def generate_css_cts_signal(bit_array, symbol_duration, sample_rate):
+def generate_css_cts_signal(bit_array, symbol_duration, sample_rate, gap=0):
     samp_per_sym = int(symbol_duration * sample_rate)
+    samp_per_gap = int(gap * sample_rate)  # Number of samples for the gap duration
     t = np.arange(samp_per_sym) / sample_rate
+    gap_signal = np.zeros(samp_per_gap)  # Signal for the gap
     signal = np.array([])
 
     mid_range = (CTS_RANGE[1] - CTS_RANGE[0]) / 2 + CTS_RANGE[0]  # Mid-range frequency for CTS
@@ -79,6 +111,7 @@ def generate_css_cts_signal(bit_array, symbol_duration, sample_rate):
             freq = np.concatenate((freq1, freq2))
 
         chirp_signal = np.cos(2 * np.pi * freq * t)
-        signal = np.concatenate((signal, chirp_signal))
+        # Concatenate the symbol and the gap signal
+        signal = np.concatenate((signal, chirp_signal, gap_signal))
 
     return signal

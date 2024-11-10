@@ -1,10 +1,6 @@
 import queue
 import sys
 
-from scipy.signal import butter, filtfilt, correlate
-from signals.resources.gibbs_removal import _gibbs_removal_1d
-from signals.util.utils import plot_frequency_spectrum
-
 from matplotlib.animation import FuncAnimation
 import matplotlib.pyplot as plt
 import numpy as np

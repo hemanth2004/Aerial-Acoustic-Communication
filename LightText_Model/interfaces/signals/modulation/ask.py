@@ -6,20 +6,24 @@ low_amp = 0
 def ask_modulation_order():
     return 2
 
-def generate_ask_signal(bit_array, symbol_duration, sample_rate, carrier_freq=3700):
+def generate_ask_signal(bit_array, symbol_duration, sample_rate, carrier_freq=3700, gap=0):
     samp_per_sym = int(symbol_duration * sample_rate)
+    samp_per_gap = int(gap * sample_rate)  # Number of samples for the gap duration
     
     t = np.arange(samp_per_sym) / sample_rate
     ask_signal = np.array([])
 
     for bit in bit_array:
-        if bit == 1:
-            amp = high_amp
-        else:
-            amp = low_amp
+        # Set amplitude based on the bit value
+        amp = high_amp if bit == 1 else low_amp
         
+        # Generate the ASK carrier wave
         carrier_wave = amp * np.sin(2 * np.pi * carrier_freq * t)
         ask_signal = np.concatenate((ask_signal, carrier_wave))
+
+        # Append the gap as zeros, if specified
+        if gap > 0:
+            ask_signal = np.concatenate((ask_signal, np.zeros(samp_per_gap)))
 
     return ask_signal
         

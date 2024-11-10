@@ -1,20 +1,37 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.signal import hilbert, correlate
+from scipy.signal import hilbert, correlate, convolve
 from scipy.signal import butter, lfilter, filtfilt, sosfilt, stft
 
 def butter_bandpass(lowcut, highcut, fs, order=5):
     nyq = 0.5 * fs
     low = lowcut / nyq
     high = highcut / nyq
-    b, a = butter(order, [low, high], btype='band')
-    return b, a
+    sos = butter(order, [low, high], btype='band', output='sos')
+    return sos
 
-def butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
+def l_butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
     b, a = butter_bandpass(lowcut, highcut, fs, order=order)
     y = lfilter(b, a, data)
     return y
 
+def sos_butter_bandpass_filter(data, lowcut, highcut, fs, order=5):
+    """
+    Applies a Butterworth bandpass filter to data.
+    
+    Parameters:
+        data (array-like): Input signal to filter.
+        lowcut (float): Low cutoff frequency in Hz.
+        highcut (float): High cutoff frequency in Hz.
+        fs (float): Sampling frequency in Hz.
+        order (int): The order of the filter.
+        
+    Returns:
+        filtered_data (ndarray): Bandpass-filtered signal.
+    """
+    sos = butter_bandpass(lowcut, highcut, fs, order)
+    filtered_data = sosfilt(sos, data)
+    return filtered_data
 
 # Function to design and apply the Butterworth bandpass filter
 def bandpass_filter(signal, fs, lowcut, highcut, order=4):
@@ -27,6 +44,7 @@ def bandpass_filter(signal, fs, lowcut, highcut, order=4):
     # Apply the filter to the signal
     filtered_signal = lfilter(b, a, signal)
     return filtered_signal
+
 
 def lowpass_filter(data, cutoff, fs, order=5):
     nyquist = 0.5 * fs
@@ -150,3 +168,32 @@ def correlation_filter(signal, sample_rate, reference_signal):
     time = np.arange(len(correlated_signal)) / sample_rate
 
     return time, correlated_signal
+
+
+
+def matched_filter(signal, sample_rate, reference_signal):
+    """
+    Applies a matched filter to the signal based on the given reference signal.
+
+    Parameters:
+    - signal (numpy array): The input signal to be filtered.
+    - sample_rate (float): The sampling rate of the signal (in Hz).
+    - reference_signal (numpy array): The reference signal (e.g., chirp) for matched filtering.
+
+    Returns:
+    - time (numpy array): Time axis.
+    - matched_signal (numpy array): Matched filter output (matched filter response over time).
+    """
+    # Create the matched filter by conjugating and time-reversing the reference signal
+    matched_filter_template = np.conj(reference_signal[::-1])
+
+    # Perform convolution (matched filtering) between the input signal and the matched filter template
+    matched_signal = convolve(signal, matched_filter_template, mode='same')
+
+    # Normalize the matched filter output
+    matched_signal = matched_signal / np.max(np.abs(matched_signal))
+
+    # Generate time axis for plotting
+    time = np.arange(len(matched_signal)) / sample_rate
+
+    return time, matched_signal

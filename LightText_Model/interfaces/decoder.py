@@ -1,4 +1,4 @@
-import listener2
+import interfaces.listener as listener
 import numpy as np
 import os
 import matplotlib.pyplot as plt
@@ -7,7 +7,7 @@ from collections import deque
 
 from signals.util.rt import realtime_process
 from signals.processing.filters import moving_average, narrowband_filter, bandpass_filter
-from signals.processing.synchronization import sync_ask
+from interfaces.signals.processing.synchronization_ask import sync_ask
 from signals.modulation.ask import decode_ask_signal, generate_ask_signal 
 from frame_processing import get_frame
 
@@ -604,5 +604,5 @@ def update_callback(data):
     nbf.update(data)
 
 
-listener2.decoder_callbacks.append(update_callback)
-listener2.start_listening()
+listener.decoder_callbacks.append(update_callback)
+listener.start_listening()

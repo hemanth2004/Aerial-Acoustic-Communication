@@ -1,12 +1,13 @@
 import numpy as np
 import pyaudio
-import matplotlib.pyplot as plt
 import wave
+import matplotlib.pyplot as plt
 
 sample_rate = 44100  # Sample rate in Hz
-duration = 0.075  # Duration of each symbol in seconds
 
-# Save the signal to a WAV file
+save_signal_wav = False
+
+
 def save_to_wav(signal, sample_rate, filename):
     signal = np.int16(signal / np.max(np.abs(signal)) * 32767)
     with wave.open(filename, 'wb') as wf:
@@ -15,8 +16,12 @@ def save_to_wav(signal, sample_rate, filename):
         wf.setframerate(sample_rate)
         wf.writeframes(signal.tobytes())
 
-# Emit the signal via speaker
-def play_signal(signal, sample_rate):
+def play_signal(signal, sample_rate, save_wav=False):
+
+    if save_wav:
+        filename = 'sent_signal.wav'
+        save_to_wav(signal, sample_rate, filename)
+
     p = pyaudio.PyAudio()
     stream = p.open(format=pyaudio.paFloat32,
                     channels=1,
@@ -27,21 +32,15 @@ def play_signal(signal, sample_rate):
     stream.close()
     p.terminate()
 
-def send_bits(bit_array, modulation_fn, plot_wave=True, preamble_signal=None):
-    # Generate the FSK-ASK signal for the data
-    signal = modulation_fn(bit_array, duration, sample_rate)
+def send_bits(bit_array, modulation_fn, duration, plot_wave=True, preamble_signal=None, gap=0):
+    signal = modulation_fn(bit_array, duration, sample_rate, gap)
+
     if preamble_signal is not None:
         signal = np.concatenate((preamble_signal, signal))
 
-    print("Total samples: ", len(signal))
-    
-    # Play the generated signal
-    play_signal(signal, sample_rate)
-
-    # Save the generated signal to a WAV file
-    filename = 'ask_signal.wav'
-    save_to_wav(signal, sample_rate, filename)
-    
+    print("Total seconds: ", len(signal)/sample_rate)
+    play_signal(signal, sample_rate, save_signal_wav)
+    save_to_wav(signal, sample_rate, "sent.wav")
     # Optionally, plot the waveform
     if plot_wave:
         t = np.arange(len(signal)) / sample_rate

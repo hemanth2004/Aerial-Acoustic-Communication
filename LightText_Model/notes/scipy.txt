@@ -1,9 +1,0 @@
-Check documentation
-
-
-tips to improve signal processing
-1. Floating Point precision
-2. Threading (2)
-3. Ring buffers for better synchronization between threads (Queue())
-4. The GPU  likes frequency domain data
-
