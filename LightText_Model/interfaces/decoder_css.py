@@ -44,19 +44,16 @@ def monitor_system_usage(interval=1.0):
 
 # Start the monitor function in a new thread
 monitor_thread = threading.Thread(target=monitor_system_usage, args=(1.0,), daemon=True)
-monitor_thread.start()
-
-
-
+# monitor_thread.start()
 
 # engine on parameters
 power_mean_threshold = 0.3
 power_max_threshold = 1 # for pre and post preamble phase
 
 rate = 44100
-symbol_duration = 0.18
-symbol_gap = 0.02
-frame_size = 5*1
+symbol_duration = 0.13
+symbol_gap = 0.03
+frame_size = 5*2
 
 main_fig = None
 
@@ -126,7 +123,7 @@ syncing = sync_css(
     bit_outlet=None,
     frame_outlet=frame_outlet,
     preamble=[1, 1, 0, 1],
-    plot=True,
+    plot=False,
     bottleneck_deadline=8,
     frame_size=frame_size
 )
@@ -142,7 +139,7 @@ def scm_out(samples):
 
     syncing.append_samples(samples)
     # Plotting logic based on the `plot_nbf` flag
-    if False:
+    if True:
         if main_fig is not None:
             plt.close(main_fig)  # Close the previous figure if it exists
 
@@ -310,8 +307,8 @@ hbe = realtime_process(
 #endregion
 
 #region reference signals
-upchirp = generate_css_bok_signal_half_range([1], symbol_duration, rate)
-downchirp = generate_css_bok_signal_half_range([0], symbol_duration, rate)
+upchirp = generate_css_bok_signal([1], symbol_duration, rate)
+downchirp = generate_css_bok_signal([0], symbol_duration, rate)
 
 _00_qok = generate_css_qok_signal([0,0],  symbol_duration, rate)
 _01_qok = generate_css_qok_signal([0,1],  symbol_duration, rate)
@@ -367,7 +364,7 @@ crl = realtime_process(
 
 #region Narrow-band Filter realtime process
 def nbf_process(samples):
-    extraband = -100
+    extraband = 0
     result = sos_butter_bandpass_filter(samples, BOK_RANGE[0]-extraband, BOK_RANGE[1]+extraband, rate, 5)
     return result, samples
 def nbf_outlet(args):

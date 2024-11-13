@@ -80,7 +80,7 @@ class sync_css:
 
                 # cleanup the right surroundings of the detected bit to make sure theres
                 # only 1 sample in the locality
-                cleanup_radius = int(0.6 * self.symbol_duration * self.sampling_rate)
+                cleanup_radius = int(0.9 * self.symbol_duration * self.sampling_rate)
 
                 list_of_detections = []
                 for j in range(i, min(len(signal), i+cleanup_radius)):
@@ -108,7 +108,7 @@ class sync_css:
                 self.preamble_buffer.enqueue([i, bit])
                 
                 # also add code to remove any other sample in half a symbol duration radius
-                print("current prepreamble buffer: ", self.preamble_buffer)
+                # print("current prepreamble buffer: ", self.preamble_buffer)
             
             if self.preamble_buffer.size() == len(self.preamble):
                 # check if the buffer matches the preamble
@@ -122,7 +122,7 @@ class sync_css:
                     if all(dist >= distance_threshold for dist in distances):
                         # preamble detected
                         self.signal_cursor = i+1 # cursor is at exact instant the preamble ends
-                        print("\n DETECTED")
+                        print("\nDETECTED PREAMBLE 1101\n")
                         return True
         return False
 
@@ -135,7 +135,7 @@ class sync_css:
                 """
                 follow mostly the same strategy as preamble but with a smaller margin
                 """
-                cleanup_radius = int(0.6 * self.symbol_duration * self.sampling_rate)
+                cleanup_radius = int(0.9 * self.symbol_duration * self.sampling_rate)
 
                 list_of_detections = []
                 for j in range(i, min(len(signal), i+cleanup_radius)):

@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import chirp
 
-BOK_RANGE = (2000, 8000)
+BOK_RANGE = (200, 20000)
 
 
 QOK_SWEEP1 = (3000, 4000) 

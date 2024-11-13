@@ -4,7 +4,7 @@ import seaborn as sns
 def plot_stats():
     # Data for the plot
     stats = {
-        "CPU (%)": [17.1, 38.4],
+        "DR": [5, 8.33],
         "Memory (MB)": [376.60, 345.45],
         "BER (%) - ASK": [4, 24],
         "Data Rate (bps)": [5, 8.33]
@@ -20,9 +20,9 @@ def plot_stats():
     axes = axes.flatten()
 
     # Plot CPU usage with minimalist design
-    axes[0].bar(labels, stats["CPU (%)"], color='steelblue', width=0.4)
-    axes[0].set_title("CPU Usage (%)", fontsize=14, weight='bold')
-    axes[0].set_ylabel("CPU Usage (%)", fontsize=12)
+    axes[0].bar(labels, stats["DR"], color='steelblue', width=0.4)
+    axes[0].set_title("Data Rate", fontsize=14, weight='bold')
+    axes[0].set_ylabel("bps", fontsize=12)
     axes[0].tick_params(axis='both', which='major', labelsize=11)
     
     # Plot Memory usage with minimalist design
